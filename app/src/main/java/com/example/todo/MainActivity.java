@@ -2,6 +2,7 @@ package com.example.todo;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
@@ -18,6 +19,9 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 
@@ -43,11 +47,14 @@ public class MainActivity extends Activity {
     private LinearLayout listLayout;
     private TextView counter;
     private float density;
+    private SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         density = getResources().getDisplayMetrics().density;
+        prefs = getSharedPreferences("todo_prefs", MODE_PRIVATE);
+        load();
         getWindow().setStatusBarColor(PRIMARY);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
 
@@ -216,6 +223,7 @@ public class MainActivity extends Activity {
         delete.setGravity(Gravity.CENTER);
         delete.setOnClickListener(v -> {
             tasks.remove(task);
+            save();
             render();
         });
         card.addView(delete, new LinearLayout.LayoutParams(dp(40), dp(40)));
@@ -223,6 +231,7 @@ public class MainActivity extends Activity {
         // الضغط على البطاقة = إكمال/إلغاء الإكمال
         card.setOnClickListener(v -> {
             task.done = !task.done;
+            save();
             render();
         });
 
@@ -248,6 +257,7 @@ public class MainActivity extends Activity {
                     String text = input.getText().toString().trim();
                     if (!text.isEmpty()) {
                         tasks.add(0, new Task(text));
+                        save();
                         render();
                     }
                 })
@@ -255,6 +265,34 @@ public class MainActivity extends Activity {
                 .create();
         dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
         dialog.show();
+    }
+
+    // ===== الحفظ والتحميل =====
+    private void save() {
+        try {
+            JSONArray arr = new JSONArray();
+            for (Task t : tasks) {
+                JSONObject o = new JSONObject();
+                o.put("text", t.text);
+                o.put("done", t.done);
+                arr.put(o);
+            }
+            prefs.edit().putString("tasks", arr.toString()).apply();
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void load() {
+        try {
+            JSONArray arr = new JSONArray(prefs.getString("tasks", "[]"));
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                Task t = new Task(o.getString("text"));
+                t.done = o.optBoolean("done", false);
+                tasks.add(t);
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     // ===== أدوات مساعدة =====
